@@ -3,24 +3,31 @@ package mykyta.anyshchenko.isdlr5.repository.impl;
 import mykyta.anyshchenko.isdlr5.exception.ObjectNotFoundException;
 import mykyta.anyshchenko.isdlr5.model.Book;
 import mykyta.anyshchenko.isdlr5.repository.BookRepository;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 
 import java.util.Collection;
+import java.util.List;
 
 public class BookRepositoryImpl implements BookRepository {
 
-    public static final String GET_ALL = "SELECT * FROM book WHERE deleted = false";
-    public static final String GET_BY_ID = "SELECT * FROM book WHERE id = '%s'";
-    public static final String INSERT = "INSERT INTO book (id, name, author, deleted) VALUES ('%s', '%s', '%s' , %b);";
-    public static final String DELETE_BY_ID = "DELETE FROM book WHERE id = '%s'";
-    public static final String UPDATE_BY_ID = "UPDATE book " +
+    private static Logger LOGGER;
+
+
+    private static final String GET_ALL = "SELECT * FROM book WHERE deleted = false";
+    private static final String GET_BY_ID = "SELECT * FROM book WHERE id = '%s'";
+    private static final String INSERT = "INSERT INTO book (id, name, author, deleted) VALUES ('%s', '%s', '%s' , %b);";
+    private static final String DELETE_BY_ID = "DELETE FROM book WHERE id = '%s'";
+    private static final String UPDATE_BY_ID = "UPDATE book " +
                                                 "SET id = '%s', name = '%s', author = '%s', deleted = %b " +
                                                 "WHERE id = '%s'";
 
-    JdbcTemplate jdbcTemplate;
-    RowMapper<Book> bookRowMapper = (resultSet, i) -> {
+    private JdbcTemplate jdbcTemplate;
+    private RowMapper<Book> bookRowMapper = (resultSet, i) -> {
         Book book = new Book();
         book.setId(resultSet.getString("id"));
         book.setName(resultSet.getString("name"));
@@ -30,18 +37,25 @@ public class BookRepositoryImpl implements BookRepository {
     };
 
     public BookRepositoryImpl(JdbcTemplate jdbcTemplate) {
+        LOGGER = LogManager.getLogger(BookRepositoryImpl.class);
         this.jdbcTemplate = jdbcTemplate;
     }
 
     @Override
     public Collection<Book> getAll() {
-        return jdbcTemplate.query(GET_ALL, bookRowMapper);
+        LOGGER.trace("getAll()");
+        List<Book> books = jdbcTemplate.query(GET_ALL, bookRowMapper);
+        LOGGER.trace("getAll() - finished");
+        return books;
     }
 
     @Override
     public Book getById(String id) {
+        LOGGER.trace("getById('" + id + "')");
         try{
-            return jdbcTemplate.queryForObject(String.format(GET_BY_ID, id), bookRowMapper);
+            Book book = jdbcTemplate.queryForObject(String.format(GET_BY_ID, id), bookRowMapper);
+            LOGGER.trace("getById('" + id + "') - finished");
+            return book;
         } catch (EmptyResultDataAccessException e){
             throw new ObjectNotFoundException("Object with id '" + id + "' not found");
         }
@@ -49,23 +63,32 @@ public class BookRepositoryImpl implements BookRepository {
 
     @Override
     public String save(Book book) {
-        if(getById(book.getId()) != null){
-            return update(book);
-        }
+        LOGGER.trace("save('" + book + "')");
 
-        jdbcTemplate.execute(String.format(
-                INSERT,
-                book.getId(),
-                book.getName(),
-                book.getAuthor(),
-                book.isDeleted()
+        try{
+
+            String id = update(book);
+            LOGGER.trace("save('" + book + "') - finished");
+            return id;
+
+        } catch (ObjectNotFoundException e){
+
+            jdbcTemplate.execute(String.format(
+                    INSERT,
+                    book.getId(),
+                    book.getName(),
+                    book.getAuthor(),
+                    book.isDeleted()
             ));
 
-        return book.getId();
+            LOGGER.trace("save('" + book + "') - finished");
+            return book.getId();
+        }
     }
 
     @Override
     public String update(Book book) {
+        LOGGER.trace("update('" + book + "')");
         getById(book.getId());
 
         jdbcTemplate.execute(
@@ -78,15 +101,20 @@ public class BookRepositoryImpl implements BookRepository {
                         book.getId()
                     ));
 
+        LOGGER.trace("update('" + book + "') - finished");
         return book.getId();
     }
 
     @Override
     public String deleteById(String id) {
+        LOGGER.trace("deleteById('" + id + "')");
+
         getById(id);
 
         jdbcTemplate.execute(String.format(DELETE_BY_ID, id));
 
+
+        LOGGER.trace("deleteById('" + id + "') - finished");
         return id;
     }
 }

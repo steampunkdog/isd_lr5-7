@@ -1,0 +1,7 @@
+spring:
+  main:
+    web-application-type: NONE
+  datasource:
+    url: jdbc:mysql://localhost:3306/lr5
+    username: root
+    password: root

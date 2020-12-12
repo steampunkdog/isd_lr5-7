@@ -2,6 +2,9 @@ package mykyta.anyshchenko.isdlr5.controller;
 
 import mykyta.anyshchenko.isdlr5.model.Book;
 import mykyta.anyshchenko.isdlr5.service.BookService;
+import org.apache.logging.log4j.LogManager;
+
+import org.apache.logging.log4j.Logger;
 
 import javax.annotation.PostConstruct;
 import java.util.Arrays;
@@ -9,15 +12,19 @@ import java.util.Scanner;
 import java.util.stream.Stream;
 
 public class BookConsoleController {
-    BookService bookService;
 
-    public static final String GET_ALL_COMMAND = "getAll";
-    public static final String GET_BY_ID_COMMAND = "getById";
-    public static final String DELETE_BY_FIRST_CHAR_COMMAND = "delByFirstChar";
-    public static final String SOFT_DELETE_BY_IDS_COMMAND = "softDelByIds";
-    public static final String EXIT_COMMAND = "exit";
+    private static Logger LOGGER;
+
+    private BookService bookService;
+
+    private static final String GET_ALL_COMMAND = "getAll";
+    private static final String GET_BY_ID_COMMAND = "getById";
+    private static final String DELETE_BY_FIRST_CHAR_COMMAND = "delByFirstChar";
+    private static final String SOFT_DELETE_BY_IDS_COMMAND = "softDelByIds";
+    private static final String EXIT_COMMAND = "exit";
 
     public BookConsoleController(BookService bookService) {
+        LOGGER = LogManager.getLogger(BookConsoleController.class);
         this.bookService = bookService;
     }
 
@@ -42,17 +49,19 @@ public class BookConsoleController {
         System.out.println("\t " + EXIT_COMMAND + " - close program");
         System.out.println("NOTE: soft deleted entity can't be retrieved \"getAll\" command \nbut you can find it by id(\"getById\" command)");
 
+
         boolean exit = false;
         while (!exit) {
-            String currentCommand = scanner.nextLine().trim();
-            String[] args = currentCommand.split(" ");
-
-            if(args[0] == null || args[0].equals("")){
-                System.err.println("ERROR: empty command");
-                continue;
-            }
-
             try {
+
+                String currentCommand = scanner.nextLine().trim();
+                String[] args = currentCommand.split(" ");
+
+                if(args[0] == null || args[0].equals("")){
+                    throw new IllegalArgumentException("Command can`t be empty");
+                }
+
+
                 switch (args[0]){
                     case GET_ALL_COMMAND:
                         getAll();
@@ -70,40 +79,39 @@ public class BookConsoleController {
                         exit = true;
                         break;
                 }
+
             } catch (Exception e){
-                System.out.println("ERROR: " + e.getMessage());
+                LOGGER.error(e.getMessage());
             }
         }
+
     }
 
-    void deleteByFirstCharInName(String[] args){
+    private void deleteByFirstCharInName(String[] args){
         if(args.length < 2){
-            System.err.println("ERROR: char doesn`t provided");
-            return;
+            throw new IllegalArgumentException("char doesn`t provided");
         }
         bookService.deleteByFirstCharInName(args[1].charAt(0))
                 .forEach(id -> System.out.println("DELETED: '" + id + "'"));
     }
 
-    void softDeleteByIds(String[] args){
+    private void softDeleteByIds(String[] args){
         if(args.length < 2){
-            System.err.println("ERROR: ids doesn`t provided");
-            return;
+            throw new IllegalArgumentException("ids doesn`t provided");
         }
 
         bookService.softDeleteByIds(Arrays.asList(Arrays.copyOfRange(args, 1, args.length).clone()))
             .forEach(id -> System.out.println("MARKED AS DELETED: '" + id + "'"));
     }
 
-    void getAll(){
+    private void getAll(){
         bookService.getAll()
                 .forEach(book -> System.out.println(book.toString()));
     }
 
-    void getById(String[] args){
+    private void getById(String[] args){
         if(args.length < 2){
-            System.err.println("ERROR: id doesn`t provided");
-            return;
+            throw new IllegalArgumentException("id doesn`t provided");
         }
 
         System.out.println(bookService.getById(args[1]).toString());
